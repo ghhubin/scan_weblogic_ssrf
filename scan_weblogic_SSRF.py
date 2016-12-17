@@ -34,6 +34,7 @@ def scan(ip_str):
                 resp = response.read()
             except Exception, e:
                 print e.message
+                break
             finally:
                 if httpClient:
                     httpClient.close()
@@ -41,11 +42,9 @@ def scan(ip_str):
             re_sult2 = re.findall('but could not connect',resp)
             len1 = len(re_sult1)
             len2 = len(re_sult2)
-            print str(len1) + '----' + str(len2)
             if (len1 != 0 and len2 == 0):
                 ssrf = 1
                 break
-        print ip_str + 'rrrrrrrrr\n'
         if ssrf > 0:
             print ip_str + ':' + web_port + ' is Weblogic SSRF'
         else:
@@ -87,6 +86,7 @@ def t_join(m_count):
         tmp_count = ac_count
         #print ac_count,queue.qsize()
         if (queue.empty() and threading.activeCount() <= 1) or i > 5:
+            # threading.activeCount() 返回线程个数，包括主线程
             break
 
 def get_ip_list(ip_info):
@@ -161,6 +161,7 @@ Usage: python scan-weblogic-ssrf.py -h IP [-m 10]
         sys.exit(-1)
     for ip_str in ip_list:
         queue.put(ip_str)
+        I += 1
     for i in range(m_count):
         t = ThreadNum(queue)
         t.setDaemon(True)
