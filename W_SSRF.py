@@ -7,8 +7,8 @@ import getopt
 
 def usage():
     helpmsg = '''\
-Weblogic UDDI Check
-Usage: w_uddi.py InputFilename
+Weblogic SSRF Check
+Usage: w_ssrf.py InputFilename
         InputFile Example:
             linux   10.0.0.1 7001
             windows 10.0.0.2 8002
